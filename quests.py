@@ -23,6 +23,10 @@ def ParseQuestRequirement(requires, line, questNameToId) -> bool: # returns True
 		return
 	if line.startswith("Must be able"):
 		return
+	if line.startswith("Be able"):
+		return
+	if line.startswith("Able to"):
+		return
 	if line.startswith("It is beneficial"):
 		return
 
@@ -99,6 +103,14 @@ def ParseQuestRequirement(requires, line, questNameToId) -> bool: # returns True
 def ParseQuestItem(requires, line, itemNameToId) -> bool: # returns True if subnodes in a list should be skipped
 	if line.startswith("'''"): # sometimes there are headers bundled in for organization  
 		return
+	if line.startswith("None"):
+		return
+	if line.startswith("Food"):
+		return
+	if line.startswith("Combat equipment"):
+		return
+	if "inventory" in line: # warnings about slot counts for uim's mostly
+		return
 
 	match = re.search(linkFinder, line)
 	if match:
@@ -173,10 +185,11 @@ def ParseQuestReward(makes, line, itemNameToId):
 
 def ParseQuest(name, details, rewards, itemNameToId, questNameToId):
 	simpleDetails = util.DictFromAssignments(details.params)
-	simpleRewards = util.DictFromAssignments(rewards.params)
 
 	makes = {}
 	requires = {}
+	if name not in questNameToId:
+		print("ERROR with " + name)
 
 	makes[questNameToId[name]] = 1
 
@@ -185,6 +198,11 @@ def ParseQuest(name, details, rewards, itemNameToId, questNameToId):
 
 	if "difficulty" in simpleDetails:
 		difficulty = simpleDetails["difficulty"]
+		match difficulty:
+			case "1":
+				difficulty = "Novice"
+			case "2":
+				difficulty = "Intermediate"
 
 	if "requirements" in simpleDetails:
 		for line in simpleDetails["requirements"].split("\n"):
@@ -202,14 +220,16 @@ def ParseQuest(name, details, rewards, itemNameToId, questNameToId):
 		for line in simpleDetails["items"].split("\n"):
 			indent, item = GetindentAndCleanLine(line)
 			ParseQuestItem(requires, item, itemNameToId)
-
-	if "qp" in simpleRewards:
-		makes["progression.quest_points"] = int(simpleRewards["qp"])
 	
-	if "rewards" in simpleRewards:
-		for line in simpleRewards["rewards"].split("\n"):
-			indent, reward = GetindentAndCleanLine(line)
-			ParseQuestReward(makes, reward, itemNameToId)
+	if rewards is not None:
+		simpleRewards = util.DictFromAssignments(rewards.params)
+		if "qp" in simpleRewards:
+			makes["progression.quest_points"] = int(simpleRewards["qp"])
+		
+		if "rewards" in simpleRewards:
+			for line in simpleRewards["rewards"].split("\n"):
+				indent, reward = GetindentAndCleanLine(line)
+				ParseQuestReward(makes, reward, itemNameToId)
 
 	method = {}
 	method["name"] = "Complete " + name
@@ -231,6 +251,9 @@ def BuildMethods(pages, itemNameToId, questNameToId):
 		if name.startswith("Quests/"):
 			continue
 
+		if "Quick guide" in name:
+			continue
+
 		try:
 			code = mw.parse(page, skip_style_tags=True)
 
@@ -249,9 +272,6 @@ def BuildMethods(pages, itemNameToId, questNameToId):
 			
 			if details is None:
 				print("{} missing details".format(name))
-				continue
-			if rewards is None:
-				print("{} missing rewards".format(name))
 				continue
 
 			ParseQuest(name, details, rewards, itemNameToId, questNameToId)
@@ -273,12 +293,16 @@ def BuildIdTable(pages) -> Dict[str, str]:
 	out = {}
 
 	out["Warriors' Guild"] = "access.warriors_guild"
-	out["Enter the Abyss"] = "access.abyss"
+	out["player-owned house"] = "access.poh"
 	
 	print("Generating quest name to id table")
 
 	for name, page in pages.items():
 		if name.startswith("Category"):
+			continue
+		if name.startswith("Quests/"):
+			continue
+		if "Quick guide" in name:
 			continue
 
 		if not name in out:
@@ -292,7 +316,8 @@ def BuildIdTable(pages) -> Dict[str, str]:
 def run(itemNameToId):
 	index = []
 
-	item_pages = api.query_category("Quests")
+	quest_pages = api.query_category("Quests") | api.query_category("Miniquests")
 
-	questNameToId = BuildIdTable(item_pages)
-	BuildMethods(item_pages, itemNameToId, questNameToId)
+
+	questNameToId = BuildIdTable(quest_pages)
+	BuildMethods(quest_pages, itemNameToId, questNameToId)

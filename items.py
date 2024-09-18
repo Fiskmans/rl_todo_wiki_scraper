@@ -48,15 +48,18 @@ def ParseInt(dict, key, default):
 	except:
 		return default
 
-def ParseRecipe(item, category, recipeNode, context, nameToIdLookup, methodSink):
+def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 
 	if not item in nameToIdLookup:
-		print("Output {} in {} does not have an id".format(item, "/".join(category)));
+		print("Output {} in {} does not have an id".format(item, item));
 		return
 
 	itemId = nameToIdLookup[item]
 
-	verb = "Unkown"
+	verb = "???"
+	suffix = ""
+	
+	file_path = ""
 
 	takes = {}
 	makes = {}
@@ -92,27 +95,31 @@ def ParseRecipe(item, category, recipeNode, context, nameToIdLookup, methodSink)
 			case "Farming":
 				verb = "Plant" 
 			case "Runecraft":
-				verb = "Infuse" 
+				verb = "Infuse"
+			case "Prayer":
+				verb = "Bury"
+		
+		file_path = name + "/"
 
 	for mat in EachParamCategory(recipeNode.params, "mat"):
 		name = mat[""]
 		quantity = ParseInt(mat, "quantity", 1)
 
 		if not name in nameToIdLookup:
-			print("Material {} in {} does not have an id".format(name, "/".join(category)));
+			print("Material {} in {} does not have an id".format(name, item));
 			continue
 
-		takes["item." + str(nameToIdLookup[name])] = quantity
+		takes[nameToIdLookup[name]] = quantity
 
 	for output in EachParamCategory(recipeNode.params, "output"):
 		name = output[""]
 		quantity = ParseInt(output, "quantity", 1)
 
 		if not name in nameToIdLookup:
-			print("Output {} in {} does not have an id".format(name, "/".join(category)));
+			print("Output {} in {} does not have an id".format(name, item));
 			continue
 
-		makes["item." + str(nameToIdLookup[name])] = quantity
+		makes[nameToIdLookup[name]] = quantity
 
 	simple = util.DictFromAssignments(recipeNode.params)
 
@@ -122,29 +129,73 @@ def ParseRecipe(item, category, recipeNode, context, nameToIdLookup, methodSink)
 
 			if name == "Needle":
 				verb = "Sew"
+				file_path += "Sewing/"
 
 			if name == "Gardening trowel":
-				verb = "Sow"
+				verb = "Plant"
+				file_path += "Planting/"
+
+			if name == "Pestle and mortar":
+				verb = "Crush"
+				file_path += "Crushing/"
+
+			if name == "Knife":
+				verb = "Cut"
+				file_path += "Cutting/"
+
+			if name == "Sieve":
+				verb = "Sieve"
+				file_path += "Sieve/"
+
+			if name == "Hammer" and verb != "Smith":
+				verb = "Break"
+				file_path += "Break/"
 			
 			if not name in nameToIdLookup:
-				print("Tool {} in {} does not have an id".format(name, "/".join(category)));
+				print("Tool {} in {} does not have an id".format(name, item));
 				continue
-			requires[tool] = 1
+			requires[nameToIdLookup[name]] = 1
 
 	if "facilities" in simple:
+		faciliy = ""
 		for facility in simple["facilities"].split(","):
 			name = facility.strip()
 
 			if name == "Singing bowl":
 				verb = "Sing"
-				requires["quest.137"] = 1 #Song of the elves TODO autogenerate these
+				file_path = "Singing/"
+				requires["quest.song_of_the_elves"] = 1
+			
+			if name == "Woodcutting stump":
+				verb = "Chop"
 
-	if "item." + str(itemId) not in makes:
-		print("{}/{} method does not generate the item".format("/".join(category), item))
+			if name == "Taxidermist":
+				verb = "Taxidermi"
+
+			if name == "Monument":
+				verb = "Replace for"
+
+			if name == "Exposed altar":
+				verb = "Bless"
+			
+			suffix = " at " + name
+			facility = util.SafeName(name) + "/"
+		if file_path == "":
+			file_path = "Facility/"
+
+		file_path += facility
 
 
-	if not requires and takes and makes:
+	if itemId not in makes:
+		print("{}/{} method does not generate the item".format(item, item))
+
+	if not requires and takes and makes and file_path == "":
 		verb = "Combine"
+		file_path += "Combine/"
+
+	if "item.5418" in takes or "item.5376" in takes: # Empty sack, Basket
+		verb = "Fill"
+		file_path += "Fill/"
 
 	method = {}
 
@@ -153,20 +204,24 @@ def ParseRecipe(item, category, recipeNode, context, nameToIdLookup, methodSink)
 	method["requires"] = requires
 	method["name"] = verb + " " + item
 
-	if verb == "Unkown":
-		print("{}/{}: Unkown verb".format("/".join(category), item))
+	file_path = "Baked/{}{}_{}.json".format(file_path, util.SafeName(item), index)
+
+	if verb == "???":
+		print("{}/{}: Unkown verb".format(file_path, item))
+
+	os.makedirs(os.path.dirname(file_path), exist_ok=True)
+	with open(file_path, "w+") as fi:
+		json.dump(method, fi, indent=2)
 
 
-def FindRecipes(item, category, code, context, nameToIdLookup, methodSink):
+def FindRecipes(item, code, context, nameToIdLookup, methodSink):
 
 	index = 0;
 
 	for recipe in code.filter_templates(matches=lambda t: t.name.matches("Recipe"), recursive=False):
 		index += 1
-		subcategory = category.copy();
-		subcategory.append(str(index));
 		subcontext = context.copy()
-		ParseRecipe(item, subcategory, recipe, subcontext, nameToIdLookup, methodSink);
+		ParseRecipe(item, index, recipe, subcontext, nameToIdLookup, methodSink);
 
 	for tabs in code.filter_templates(matches=lambda t: t.name.matches("Tabber"), recursive=False):
 		index = 1;
@@ -217,13 +272,15 @@ def FindIds(pages) -> Dict[str, str]:
 					continue
 
 				id = ParseInt(version, "id", -1)
-				name = version["name"].strip()
+				item_name = version["name"].strip()
 				if id == -1:
 					print("{}: failed to parse id [{}]".format(name, version["id"].strip()))
 					continue
 
 				if not name in out:
 					out[name] = "item." + str(id)
+					
+				#print("{}: item.{}".format(name, str(id)))
 
 		except (KeyboardInterrupt, SystemExit):
 			raise
@@ -251,7 +308,7 @@ def BuildMethods(nameToIdLookup, pages, methodSink):
 			if util.has_template("Interface items", code) or util.has_template("Unobtainable items", code):
 				continue
 
-			FindRecipes(name.strip(), [util.SafeName(name)], code, {}, nameToIdLookup, methodSink);
+			FindRecipes(name.strip(), code, {}, nameToIdLookup, methodSink);
 
 		except (KeyboardInterrupt, SystemExit):
 			raise
@@ -265,7 +322,7 @@ def run():
 	item_pages = api.query_category("Items")
 
 	nameToIdLookup = FindIds(item_pages)
-	#BuildMethods(nameToIdLookup, item_pages, index)
+	BuildMethods(nameToIdLookup, item_pages, index)
 
 	return nameToIdLookup
 

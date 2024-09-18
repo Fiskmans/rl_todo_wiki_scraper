@@ -124,7 +124,7 @@ def has_template(name: str, code) -> bool:
 	return len(code.filter_templates(matches=lambda t: t.name.matches(name))) != 0
 
 def SafeName(name):
-	return name.replace(" ", "_").replace("(", "").replace(")", "").replace("'", "").replace("/", "-").replace("_-_", "-").replace(".","").replace("&", "and").lower()
+	return name.replace(" ", "_").replace("(", "").replace(")", "").replace("'", "").replace("/", "-").replace("_-_", "-").replace(".","").replace("&", "and").replace("#", "__").replace("?", "_").lower()
 
 def DictFromAssignments(assignements) -> Dict[str, str]:
 	out = {}
