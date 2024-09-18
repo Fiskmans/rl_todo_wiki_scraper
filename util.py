@@ -77,8 +77,7 @@ def write_json(name: str, minName: str, docs: Dict[Any, Dict[str, Any]]):
 		json.dump(withoutNames, fi, separators=(",", ":"))
 
 
-def get_doc_for_id_string(source: str, version: Dict[str, str], docs: Dict[str, Dict],
-	allow_duplicates: bool = False) -> Optional[Dict]:
+def get_doc_for_id_string(source: str, version: Dict[str, str], docs: Dict[str, Dict], allow_duplicates: bool = False) -> Optional[Dict]:
 	if not "id" in version:
 		print("page {} is missing an id".format(source))
 		return None
@@ -123,3 +122,19 @@ def copy(name: Union[str, Tuple[str, str]],
 
 def has_template(name: str, code) -> bool:
 	return len(code.filter_templates(matches=lambda t: t.name.matches(name))) != 0
+
+def SafeName(name):
+	return name.replace(" ", "_").replace("(", "").replace(")", "").replace("'", "").replace("/", "-").replace("_-_", "-").replace(".","").replace("&", "and").lower()
+
+def DictFromAssignments(assignements) -> Dict[str, str]:
+	out = {}
+	for assign in assignements:
+		parts = assign.split("=", 1)
+		if len(parts) == 2:
+			out[parts[0].strip()] = parts[1].strip()
+		else:
+			out[parts[0].strip()] = ""
+	return out
+
+def Templates(code, name, recursive: bool = False):
+	return code.filter_templates(matches=lambda t: t.name.matches(name), recursive=recursive)

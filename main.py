@@ -2,8 +2,10 @@ import api
 
 import items
 import npcs
+import quests
 
 api.use_cache = True
 
-items.run()
-npcs.run()
+itemNameToId = items.run()
+quests.run(itemNameToId)
+

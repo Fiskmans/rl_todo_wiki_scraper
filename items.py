@@ -1,3 +1,4 @@
+import os
 import sys
 import traceback
 import re
@@ -8,41 +9,184 @@ from typing import *
 import urllib.request
 import json
 
-"this isn't quite right, because 2h, but the format isn't smart enough for that"
-slotIDs: Dict[str, int] = {
-	"weapon": 3,
-	"2h": 3,
-	"body": 4,
-	"head": 0,
-	"ammo": 13,
-	"legs": 7,
-	"feet": 10,
-	"hands": 9,
-	"cape": 1,
-	"neck": 2,
-	"ring": 12,
-	"shield": 5
-}
+use_cache: bool = True
 
-def getLimits():
-	req = urllib.request.Request(
-		'https://oldschool.runescape.wiki/w/Module:GELimits/data.json?action=raw', headers=api.user_agent)
-	with urllib.request.urlopen(req) as response:
-		data = json.loads(response.read())
-	limits = {}
-	for itemname in data:
-		if itemname.startswith('%'):
+def EachParamCategory(params, category):
+	index = 1
+	while True:
+		out = {}
+
+		filter = category + str(index)
+		#print("Looking for [{}] in {}".format(filter, params))
+
+		for val in params:
+			if not val.startswith(filter):
+				continue
+			
+			parts = val[len(filter) : ].split("=", 1)
+			if len(parts) == 2:
+				out[parts[0].strip()] = parts[1].strip()
+			else:
+				out[parts[0].strip()] = ""
+				
+		if not out:
+			break
+
+		yield out
+		index += 1
+
+
+def ParseFloat(dict, key, default):
+	try:
+		return float(dict[key].strip().replace(",", ""))
+	except:
+		return default
+
+def ParseInt(dict, key, default):
+	try:
+		return int(dict[key].strip().replace(",", ""))
+	except:
+		return default
+
+def ParseRecipe(item, category, recipeNode, context, nameToIdLookup, methodSink):
+
+	if not item in nameToIdLookup:
+		print("Output {} in {} does not have an id".format(item, "/".join(category)));
+		return
+
+	itemId = nameToIdLookup[item]
+
+	verb = "Unkown"
+
+	takes = {}
+	makes = {}
+	requires = {}
+
+	for skill in EachParamCategory(recipeNode.params, "skill"):
+		#print("Skill: {}".format(skill))
+
+		name = skill[""]
+		level = ParseInt(skill, "lvl", 1)
+		xp = ParseFloat(skill, "exp", 0.0)
+		boostable = "boostable" in skill and skill["boostable"] == "yes"
+
+		if level > 1:
+			requires["level." + name] = level
+
+		if xp > 0.0:
+			makes["xp." + name] = xp
+
+		match name:
+			case "Crafting":
+				verb = "Craft"
+			case "Smithing":
+				verb = "Smith"
+			case "Fletching":
+				verb = "Fletch" 
+			case "Herblore":
+				verb = "Mix" 
+			case "Magic":
+				verb = "Enchant" 
+			case "Cooking":
+				verb = "Cook" 
+			case "Farming":
+				verb = "Plant" 
+			case "Runecraft":
+				verb = "Infuse" 
+
+	for mat in EachParamCategory(recipeNode.params, "mat"):
+		name = mat[""]
+		quantity = ParseInt(mat, "quantity", 1)
+
+		if not name in nameToIdLookup:
+			print("Material {} in {} does not have an id".format(name, "/".join(category)));
 			continue
-		limits[itemname] = int(data[itemname])
-	return limits
+
+		takes["item." + str(nameToIdLookup[name])] = quantity
+
+	for output in EachParamCategory(recipeNode.params, "output"):
+		name = output[""]
+		quantity = ParseInt(output, "quantity", 1)
+
+		if not name in nameToIdLookup:
+			print("Output {} in {} does not have an id".format(name, "/".join(category)));
+			continue
+
+		makes["item." + str(nameToIdLookup[name])] = quantity
+
+	simple = util.DictFromAssignments(recipeNode.params)
+
+	if "tools" in simple:
+		for tool in simple["tools"].split(","):
+			name = tool.strip()
+
+			if name == "Needle":
+				verb = "Sew"
+
+			if name == "Gardening trowel":
+				verb = "Sow"
+			
+			if not name in nameToIdLookup:
+				print("Tool {} in {} does not have an id".format(name, "/".join(category)));
+				continue
+			requires[tool] = 1
+
+	if "facilities" in simple:
+		for facility in simple["facilities"].split(","):
+			name = facility.strip()
+
+			if name == "Singing bowl":
+				verb = "Sing"
+				requires["quest.137"] = 1 #Song of the elves TODO autogenerate these
+
+	if "item." + str(itemId) not in makes:
+		print("{}/{} method does not generate the item".format("/".join(category), item))
 
 
-def run():
-	limits = getLimits()
-	stats = {}
+	if not requires and takes and makes:
+		verb = "Combine"
 
-	item_pages = api.query_category("Items")
-	for name, page in item_pages.items():
+	method = {}
+
+	method["takes"] = takes
+	method["makes"] = makes
+	method["requires"] = requires
+	method["name"] = verb + " " + item
+
+	if verb == "Unkown":
+		print("{}/{}: Unkown verb".format("/".join(category), item))
+
+
+def FindRecipes(item, category, code, context, nameToIdLookup, methodSink):
+
+	index = 0;
+
+	for recipe in code.filter_templates(matches=lambda t: t.name.matches("Recipe"), recursive=False):
+		index += 1
+		subcategory = category.copy();
+		subcategory.append(str(index));
+		subcontext = context.copy()
+		ParseRecipe(item, subcategory, recipe, subcontext, nameToIdLookup, methodSink);
+
+	for tabs in code.filter_templates(matches=lambda t: t.name.matches("Tabber"), recursive=False):
+		index = 1;
+		
+
+	#util.write_json("stats.json", "stats.ids.min.json", stats)
+
+def FindIds(pages) -> Dict[str, str]:
+	out = {}
+	cache_file_name = "item_ids.cache.json"
+	if use_cache and os.path.isfile(cache_file_name):
+		with open(cache_file_name, "r") as fi:
+			print("Using cached item name to id table")
+			return json.load(fi)
+	
+	print("Generating item name to id table")
+
+	out["Pickaxe"] = "any.mining_tool"
+
+	for name, page in pages.items():
 		if name.startswith("Category:"):
 			continue
 
@@ -52,71 +196,34 @@ def run():
 			if util.has_template("Interface items", code) or util.has_template("Unobtainable items", code):
 				continue
 
-			equips = {}
-			for (vid, version) in util.each_version("Infobox Bonuses", code, include_base=True):
-				doc = {}
-				equips[vid] = doc
-
-				if "slot" in version:
-					slotID = str(version["slot"]).strip().lower()
-					if slotID in slotIDs:
-						doc["slot"] = slotIDs[slotID]
-						if slotID == "2h":
-							doc["is2h"] = True
-					elif slotID != "?":
-						print("Item {} has unknown slot {}".format(name, slotID))
-
-				for key in [
-					"astab", "aslash", "acrush", "amagic", "arange", "dstab", "dslash", "dcrush", "dmagic", "drange", "str",
-					"rstr", "mdmg", "prayer", ("speed", "aspeed")
-				]:
-					try:
-						util.copy(key, doc, version, lambda x: int(x))
-					except ValueError:
-						print("Item {} has an non integer {}".format(name, key))
-
-			for (vid, version) in util.each_version("Infobox Item", code, mergable_keys=None if len(equips) <= 1 else []):
+			for (vid, version) in util.each_version("Infobox Item", code):
 				if "removal" in version and not str(version["removal"]).strip().lower() in ["", "no", "n/a"]:
 					continue
 
-				doc = util.get_doc_for_id_string(name + str(vid), version, stats)
-				if doc == None:
+
+				if not "id" in version:
+					print("{}: no id".format(name))
 					continue
 
-				util.copy("name", doc, version)
-				if not "name" in doc:
-					doc["name"] = name
+				if version["id"].strip() == "":
+					print("{}: empty id".format(name))
+					continue
 
-				equipable = "equipable" in version and "yes" in str(version["equipable"]).strip().lower()
+				if version["id"].strip().startswith("beta"):
+					continue
 
-				if "weight" in version:
-					strval = str(version["weight"]).strip()
-					if strval.endswith("kg"):
-						strval = strval[:-2].strip()
-					if strval != "":
-						floatval = float(strval)
-						if floatval != 0:
-							doc["weight"] = floatval
+				if not "name" in version:
+					print("{}: no name".format(name))
+					continue
 
-				equipVid = vid if vid in equips else -1 if -1 in equips else None
-				if equipVid != None:
-					if equipable or not "broken" in version["name"].lower():
-						if not equipable:
-							print("Item {} has Infobox Bonuses but not equipable".format(name))
-						doc["equipable"] = True
-						doc["equipment"] = equips[equipVid]
-				elif equipable:
-					print("Item {} has equipable but not Infobox Bonuses".format(name))
-					doc["equipable"] = True
-					doc["equipment"] = {}
+				id = ParseInt(version, "id", -1)
+				name = version["name"].strip()
+				if id == -1:
+					print("{}: failed to parse id [{}]".format(name, version["id"].strip()))
+					continue
 
-				itemName = name
-				if "gemwname" in version:
-					itemName = str(version["gemwname"]).strip()
-				elif "name" in version:
-					itemName = str(version["name"]).strip()
-				if itemName in limits:
-					doc['ge_limit'] = limits[itemName]
+				if not name in out:
+					out[name] = "item." + str(id)
 
 		except (KeyboardInterrupt, SystemExit):
 			raise
@@ -124,4 +231,41 @@ def run():
 			print("Item {} failed:".format(name))
 			traceback.print_exc()
 
-	util.write_json("stats.json", "stats.ids.min.json", stats)
+	with open(cache_file_name, "w+") as fi:
+		json.dump(out, fi)
+
+	return out
+	
+
+def BuildMethods(nameToIdLookup, pages, methodSink):
+
+	print("Building methods")
+
+	for name, page in pages.items():
+		if name.startswith("Category:"):
+			continue
+
+		try:
+			code = mw.parse(page, skip_style_tags=True)
+
+			if util.has_template("Interface items", code) or util.has_template("Unobtainable items", code):
+				continue
+
+			FindRecipes(name.strip(), [util.SafeName(name)], code, {}, nameToIdLookup, methodSink);
+
+		except (KeyboardInterrupt, SystemExit):
+			raise
+		except:
+			print("Item {} failed:".format(name))
+			traceback.print_exc()
+
+def run():
+	index = []
+
+	item_pages = api.query_category("Items")
+
+	nameToIdLookup = FindIds(item_pages)
+	#BuildMethods(nameToIdLookup, item_pages, index)
+
+	return nameToIdLookup
+
