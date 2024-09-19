@@ -67,6 +67,8 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 
 	for skill in EachParamCategory(recipeNode.params, "skill"):
 		#print("Skill: {}".format(skill))
+		if "" not in skill or skill[""] == "":
+			continue
 
 		name = skill[""]
 		level = ParseInt(skill, "lvl", 1)
@@ -91,7 +93,10 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 			case "Magic":
 				verb = "Enchant" 
 			case "Cooking":
-				verb = "Cook" 
+				if xp > 0:
+					verb = "Cook" 
+				else:
+					verb = "Prepare"
 			case "Farming":
 				verb = "Plant" 
 			case "Runecraft":
@@ -135,7 +140,7 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 				verb = "Plant"
 				file_path += "Planting/"
 
-			if name == "Pestle and mortar":
+			if name == "Pestle and mortar" or name == "Pestle and mortar (The Gauntlet)":
 				verb = "Crush"
 				file_path += "Crushing/"
 
@@ -146,6 +151,10 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 			if name == "Sieve":
 				verb = "Sieve"
 				file_path += "Sieve/"
+
+			if name == "Pirate hat":
+				verb = "minigame"
+				file_path += "Trouble_Brewing/"
 
 			if name == "Hammer" and verb != "Smith":
 				verb = "Break"
@@ -185,10 +194,6 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 
 		file_path += facility
 
-
-	if itemId not in makes:
-		print("{}/{} method does not generate the item".format(item, item))
-
 	if not requires and takes and makes and file_path == "":
 		verb = "Combine"
 		file_path += "Combine/"
@@ -204,13 +209,15 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 	method["requires"] = requires
 	method["name"] = verb + " " + item
 
-	file_path = "Baked/{}{}_{}.json".format(file_path, util.SafeName(item), index)
+	final_path = "Baked/{}{}_{}.json".format(file_path, util.SafeName(item), index)
 
-	if verb == "???":
+	if verb == "???" or itemId not in makes:
 		print("{}/{}: Unkown verb".format(file_path, item))
+		final_path = "Baked/Failed/{}{}_{}.json".format(file_path, util.SafeName(item), index)
 
-	os.makedirs(os.path.dirname(file_path), exist_ok=True)
-	with open(file_path, "w+") as fi:
+
+	os.makedirs(os.path.dirname(final_path), exist_ok=True)
+	with open(final_path, "w+") as fi:
 		json.dump(method, fi, indent=2)
 
 
@@ -277,8 +284,12 @@ def FindIds(pages) -> Dict[str, str]:
 					print("{}: failed to parse id [{}]".format(name, version["id"].strip()))
 					continue
 
-				if not name in out:
+				if not item_name in out:
+					out[item_name] = "item." + str(id)
+				elif not name in out:
 					out[name] = "item." + str(id)
+				else:
+					print("Duplicate item [{}] {} and {}".format(item_name, out[item_name], "item." + str(id)))
 					
 				#print("{}: item.{}".format(name, str(id)))
 

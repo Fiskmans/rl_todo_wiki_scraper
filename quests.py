@@ -16,7 +16,7 @@ def GetindentAndCleanLine(rawLine) -> (int, str):
 	trimmed = rawLine.lstrip("*")
 	return ((len(rawLine) - len(trimmed)), trimmed.strip())
 
-def ParseQuestRequirement(requires, line, questNameToId) -> bool: # returns True if subnodes in a list should be skipped
+def ParseQuestRequirement(requires, line, questNameToId, itemNameToId) -> bool: # returns True if subnodes in a list should be skipped
 	if line.startswith("'''"): # sometimes there are headers bundled in for organization  
 		return
 	if line.startswith("The Ability") or line.startswith("The ability"):
@@ -86,11 +86,14 @@ def ParseQuestRequirement(requires, line, questNameToId) -> bool: # returns True
 		match = re.search(linkFinder, line)
 
 		if match:
-			requiredQuestName = match.group()[2:-2]
-			if requiredQuestName not in questNameToId:
-				print("{} of line [{}] does not have an id".format(requiredQuestName, line))
+			requiredName = match.group()[2:-2]
+			if requiredName not in questNameToId:
+				if requiredName in itemNameToId:
+					requires[itemNameToId[requiredName]]
+				else:
+				print("Quest {} of line [{}] does not have an id".format(requiredQuestName, line))
 				return False
-			requires[questNameToId[requiredQuestName]] = 1
+			requires[questNameToId[requiredName]] = 1
 			requirementOnLine = True
 #		else:
 #			print("No match on: {}".format(line))
