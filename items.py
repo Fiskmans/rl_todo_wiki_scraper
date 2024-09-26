@@ -102,7 +102,7 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 			case "Runecraft":
 				verb = "Infuse"
 			case "Prayer":
-				verb = "Bury"
+				verb = "Bless"
 		
 		file_path = name + "/"
 
@@ -195,8 +195,8 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 		file_path += facility
 
 	if not requires and takes and makes and file_path == "":
-		verb = "Combine"
-		file_path += "Combine/"
+		verb = "Make"
+		file_path += "Make/"
 
 	if "item.5418" in takes or "item.5376" in takes: # Empty sack, Basket
 		verb = "Fill"

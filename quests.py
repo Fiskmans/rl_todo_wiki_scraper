@@ -80,7 +80,7 @@ def ParseQuestRequirement(requires, line, questNameToId, itemNameToId) -> bool: 
 				continue
 			
 			requires[id] = amount
-			requirementOnLine = True
+			return True
 
 	if not requirementOnLine:
 		match = re.search(linkFinder, line)
@@ -89,19 +89,18 @@ def ParseQuestRequirement(requires, line, questNameToId, itemNameToId) -> bool: 
 			requiredName = match.group()[2:-2]
 			if requiredName not in questNameToId:
 				if requiredName in itemNameToId:
-					requires[itemNameToId[requiredName]]
+					requires[itemNameToId[requiredName]] = 1
 				else:
-				print("Quest {} of line [{}] does not have an id".format(requiredQuestName, line))
-				return False
+					print("Quest {} of line [{}] does not have an id".format(requiredName, line))
+				return True
 			requires[questNameToId[requiredName]] = 1
-			requirementOnLine = True
+			return True
 #		else:
 #			print("No match on: {}".format(line))
 
 #	if not requirementOnLine:
 #		print("No requirement on: {}".format(line))
-
-	return requirementOnLine
+	return False
 
 def ParseQuestItem(requires, line, itemNameToId) -> bool: # returns True if subnodes in a list should be skipped
 	if line.startswith("'''"): # sometimes there are headers bundled in for organization  
@@ -193,6 +192,7 @@ def ParseQuest(name, details, rewards, itemNameToId, questNameToId):
 	requires = {}
 	if name not in questNameToId:
 		print("ERROR with " + name)
+		return
 
 	makes[questNameToId[name]] = 1
 
@@ -215,7 +215,7 @@ def ParseQuest(name, details, rewards, itemNameToId, questNameToId):
 
 			skipToNextIndentOf = 0
 
-			if ParseQuestRequirement(requires, req, questNameToId):
+			if ParseQuestRequirement(requires, req, questNameToId, itemNameToId):
 				skipToNextIndentOf = indent
 				continue
 
