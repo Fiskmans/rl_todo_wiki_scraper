@@ -48,14 +48,7 @@ def ParseInt(dict, key, default):
 	except:
 		return default
 
-def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
-
-	if not item in nameToIdLookup:
-		print("Output {} in {} does not have an id".format(item, item));
-		return
-
-	itemId = nameToIdLookup[item]
-
+def ParseRecipe(pageName, index, recipeNode, context, nameToIdLookup, methodSink):
 	verb = "???"
 	suffix = ""
 	
@@ -111,7 +104,7 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 		quantity = ParseInt(mat, "quantity", 1)
 
 		if not name in nameToIdLookup:
-			print("Material {} in {} does not have an id".format(name, item));
+			print("Material {} in {} does not have an id".format(name, pageName));
 			continue
 
 		takes[nameToIdLookup[name]] = quantity
@@ -121,7 +114,7 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 		quantity = ParseInt(output, "quantity", 1)
 
 		if not name in nameToIdLookup:
-			print("Output {} in {} does not have an id".format(name, item));
+			print("Output {} in {} does not have an id".format(name, pageName));
 			continue
 
 		makes[nameToIdLookup[name]] = quantity
@@ -148,6 +141,10 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 				verb = "Cut"
 				file_path += "Cutting/"
 
+			if name == "Chisel":
+				verb = "Chisel"
+				file_path += "Chisel/"
+
 			if name == "Sieve":
 				verb = "Sieve"
 				file_path += "Sieve/"
@@ -161,7 +158,7 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 				file_path += "Break/"
 			
 			if not name in nameToIdLookup:
-				print("Tool {} in {} does not have an id".format(name, item));
+				print("Tool {} in {} does not have an id".format(name, pageName));
 				continue
 			requires[nameToIdLookup[name]] = 1
 
@@ -169,6 +166,9 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 		faciliy = ""
 		for facility in simple["facilities"].split(","):
 			name = facility.strip()
+
+			if name == "":
+				continue
 
 			if name == "Singing bowl":
 				verb = "Sing"
@@ -186,13 +186,21 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 
 			if name == "Exposed altar":
 				verb = "Bless"
+
+			if name == "Bone grinder":
+				verb = "Grind"
+
+			if name in [ "Ghommal", "Zooknock", "Dampe", "Peer the seer", "Nigel", "Ned", "Aggie", "Wizard Jalarast", "Fancy clothes store", "Alrena", "Zaff", "Wizard Mizgog", "Watchtower Wizard", "Turael", "Abbot Langley", "Apothecary" ]:
+				verb = "Commission"
 			
 			suffix = " at " + name
-			facility = util.SafeName(name) + "/"
-		if file_path == "":
-			file_path = "Facility/"
+			facility = util.SafeName(name)
 
-		file_path += facility
+		if facility != "":
+			if file_path == "":
+				file_path = "Facility/"
+
+			file_path += facility + "/"
 
 	if not requires and takes and makes and file_path == "":
 		verb = "Make"
@@ -202,19 +210,26 @@ def ParseRecipe(item, index, recipeNode, context, nameToIdLookup, methodSink):
 		verb = "Fill"
 		file_path += "Fill/"
 
+	if "item.11740" in takes: # Scroll of redirection
+		Verb = "Redirect"
+		file_path = "Make/"
+
 	method = {}
 
 	method["takes"] = takes
 	method["makes"] = makes
 	method["requires"] = requires
-	method["name"] = verb + " " + item
+	method["name"] = verb + " " + pageName + suffix
 
-	final_path = "Baked/{}{}_{}.json".format(file_path, util.SafeName(item), index)
+	final_path = "Baked/{}{}_{}.json".format(file_path, util.SafeName(pageName), index)
 
-	if verb == "???" or itemId not in makes:
-		print("{}/{}: Unkown verb".format(file_path, item))
-		final_path = "Baked/Failed/{}{}_{}.json".format(file_path, util.SafeName(item), index)
+	if verb == "???":
+		print("{}/{}: Unkown verb".format(file_path, pageName))
+		final_path = "Baked/Failed/{}{}_{}.json".format(file_path, util.SafeName(pageName), index)
 
+	if not makes:
+		print("{}/{}: Doesnt make anything".format(file_path, pageName))
+		final_path = "Baked/Failed/{}{}_{}.json".format(file_path, util.SafeName(pageName), index)
 
 	os.makedirs(os.path.dirname(final_path), exist_ok=True)
 	with open(final_path, "w+") as fi:
@@ -284,11 +299,17 @@ def FindIds(pages) -> Dict[str, str]:
 					print("{}: failed to parse id [{}]".format(name, version["id"].strip()))
 					continue
 
+				inserted = False;
+
 				if not item_name in out:
 					out[item_name] = "item." + str(id)
-				elif not name in out:
+					inserted = True
+
+				if not name in out:
 					out[name] = "item." + str(id)
-				else:
+					inserted = True
+
+				if not inserted:
 					print("Duplicate item [{}] {} and {}".format(item_name, out[item_name], "item." + str(id)))
 					
 				#print("{}: item.{}".format(name, str(id)))
@@ -303,7 +324,9 @@ def FindIds(pages) -> Dict[str, str]:
 		json.dump(out, fi)
 
 	return out
-	
+
+def RemoveUnsupportedFormatting(page):
+	return page.replace("<tabber>","").replace("</tabber>", "")
 
 def BuildMethods(nameToIdLookup, pages, methodSink):
 
@@ -314,9 +337,19 @@ def BuildMethods(nameToIdLookup, pages, methodSink):
 			continue
 
 		try:
-			code = mw.parse(page, skip_style_tags=True)
+			code = mw.parse(RemoveUnsupportedFormatting(page), skip_style_tags=True)
 
 			if util.has_template("Interface items", code) or util.has_template("Unobtainable items", code):
+				continue
+
+			isRemoved = False
+
+			for info in code.filter_templates(matches=lambda t: t.name.matches("Infobox Item"), recursive=False):
+				simpleView = util.DictFromAssignments(info.params)
+				if "removal" in simpleView and not str(simpleView["removal"]).strip().lower() in ["", "no", "n/a"]:
+					isRemoved = True
+
+			if isRemoved:
 				continue
 
 			FindRecipes(name.strip(), code, {}, nameToIdLookup, methodSink);
