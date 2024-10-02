@@ -270,7 +270,7 @@ def FindIds(pages) -> Dict[str, str]:
 			continue
 
 		try:
-			code = mw.parse(page, skip_style_tags=True)
+			code = mw.parse(page["content"], skip_style_tags=True)
 
 			if util.has_template("Interface items", code) or util.has_template("Unobtainable items", code):
 				continue
@@ -339,7 +339,7 @@ def BuildMethods(nameToIdLookup, pages, methodSink):
 			continue
 
 		try:
-			code = mw.parse(RemoveUnsupportedFormatting(page), skip_style_tags=True)
+			code = mw.parse(RemoveUnsupportedFormatting(page["content"]), skip_style_tags=True)
 
 			if util.has_template("Interface items", code) or util.has_template("Unobtainable items", code):
 				continue

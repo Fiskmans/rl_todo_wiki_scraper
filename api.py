@@ -47,6 +47,7 @@ def query_category(category_name: str) -> Dict[str, str]:
 			pageids.append(str(page["pageid"]))
 
 	pages = {}
+
 	for i in range(0, len(pageids), 50):
 		for res in get_wiki_api(
 			{
@@ -56,7 +57,28 @@ def query_category(category_name: str) -> Dict[str, str]:
 			"pageids": "|".join(pageids[i:i + 50]),
 			}, "rvcontinue"):
 			for id, page in res["query"]["pages"].items():
-				pages[page["title"]] = page["revisions"][0]["*"]
+				title = page["title"]
+				if not title in pages:
+					pages[title] = {}
+				pages[title]["content"] = page["revisions"][0]["*"]
+
+	for i in range(0, len(pageids), 50):
+		for res in get_wiki_api(
+			{
+			"action": "query",
+			"prop": "redirects",
+			"rdprop": "title",
+			"rdlimit": "500",
+			"pageids": "|".join(pageids[i:i + 50]),
+			}, "rdcontinue"):
+			for id, page in res["query"]["pages"].items():
+				if "redirects" in page:
+					title = page["title"]
+					if not title in pages:
+						pages[title] = {}
+
+					pages[title]["redirects"] = [ redirect["title"] for redirect in page["redirects"]]
+					#print("{} -> {}".format(pages[title]["redirects"], title)) TODO: figure out how to escape escape sequences
 
 	with open(cache_file_name, "w+") as fi:
 		json.dump(pages, fi)

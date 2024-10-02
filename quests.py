@@ -258,7 +258,7 @@ def BuildMethods(pages, itemNameToId, questNameToId):
 			continue
 
 		try:
-			code = mw.parse(page, skip_style_tags=True)
+			code = mw.parse(page["content"], skip_style_tags=True)
 
 			if util.has_template("Future Content", code):
 				continue
