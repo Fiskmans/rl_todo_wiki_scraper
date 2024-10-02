@@ -85,6 +85,8 @@ def ParseRecipe(pageName, index, recipeNode, context, nameToIdLookup, methodSink
 				verb = "Mix" 
 			case "Magic":
 				verb = "Enchant" 
+			case "Construction":
+				verb = "Build"
 			case "Cooking":
 				if xp > 0:
 					verb = "Cook" 
@@ -153,7 +155,7 @@ def ParseRecipe(pageName, index, recipeNode, context, nameToIdLookup, methodSink
 				verb = "minigame"
 				file_path += "Trouble_Brewing/"
 
-			if name == "Hammer" and verb != "Smith":
+			if name == "Hammer" and verb != "Smith" and verb != "Build":
 				verb = "Break"
 				file_path += "Break/"
 			
