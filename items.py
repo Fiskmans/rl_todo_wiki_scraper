@@ -424,9 +424,9 @@ def ParseRecipe(pageName, index, recipeNode, nameToIdLookup, methodSink, missing
 
 			file_path += facility + "/"
 
-	if not requires and takes and makes and file_path == "":
-		verb = "Make"
-		file_path += "Make/"
+	if "item.187" in takes or "item.5937" in takes or "item.5940" in takes or "item.3152" in takes:
+		verb = "Poison"
+		file_path += "Poision/"
 
 	if "item.5418" in takes or "item.5376" in takes: # Empty sack, Basket
 		verb = "Fill"
@@ -438,6 +438,10 @@ def ParseRecipe(pageName, index, recipeNode, nameToIdLookup, methodSink, missing
 
 	if "item.3436" in takes: # Sacred oil(1)
 		verb = "Impregnate"
+
+	if not requires and takes and makes and file_path == "":
+		verb = "Make"
+		file_path += "Make/"
 
 	method = {}
 
