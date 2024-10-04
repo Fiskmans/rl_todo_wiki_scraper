@@ -12,7 +12,6 @@ import json
 use_cache: bool = True
 
 FacilityMappings: Dict[str, str] = {
-	"Anvil":						"Smith",
 	"Blast furnace":				"Smelt",
 	"Blast Furnace":				"Smelt",
 	"Volcanic Forge":				"Smelt",
@@ -276,13 +275,24 @@ def ParseRecipe(pageName, index, recipeNode, nameToIdLookup, methodSink, missing
 		if xp > 0.0:
 			makes["xp." + name] = xp
 
+		file_path = name + "/"
+
 		match name:
 			case "Crafting":
 				verb = "Craft"
+				firstWord = util.SafeName(pageName.split(' ', 1)[0])
+
+				if firstWord in [ "yellow", "red", "purple", "origami", "pink", "orange", "leather", "green", "broodoo", "blue", "black" ]:
+					file_path += firstWord + "/"
+				
+				if "Amulet" in pageName or "amulet" in pageName:
+					file_path += "Amulet/"
+
 			case "Smithing":
 				verb = "Smith"
 			case "Fletching":
 				verb = "Fletch" 
+				file_path += util.SafeName(pageName.split(' ', 1)[0]) + "/"
 			case "Herblore":
 				verb = "Mix" 
 			case "Magic":
@@ -291,9 +301,19 @@ def ParseRecipe(pageName, index, recipeNode, nameToIdLookup, methodSink, missing
 				verb = "Build"
 			case "Cooking":
 				if xp > 0:
-					verb = "Cook" 
+					verb = "Cook"
+					file_path += "Cook/" 
+					if "pizza" in pageName or "Pizza" in pageName:
+						file_path += "pizza/"
 				else:
-					verb = "Prepare"
+					if "Burnt" in pageName:
+						verb = "Burn"
+						file_path += "Burn/"
+					else:
+						verb = "Prepare"
+						file_path += "Prepare/"
+						if "pizza" in pageName or "Pizza" in pageName:
+							file_path += "pizza/"
 			case "Farming":
 				verb = "Plant" 
 			case "Runecraft":
@@ -303,7 +323,6 @@ def ParseRecipe(pageName, index, recipeNode, nameToIdLookup, methodSink, missing
 			case "Firemaking":
 				verb = "Burn"
 		
-		file_path = name + "/"
 
 	for mat in EachParamCategory(recipeNode.params, "mat"):
 		if "" not in mat:
@@ -349,6 +368,8 @@ def ParseRecipe(pageName, index, recipeNode, nameToIdLookup, methodSink, missing
 			if name == "pestle_and_mortar" or name == "pestle_and_mortar_(the_gauntlet)":
 				verb = "Crush"
 				file_path += "Crushing/"
+				if "mix" in pageName or "Mix" in pageName:
+					file_path += "Butterflies/"
 
 			if name == "knife":
 				verb = "Cut"
@@ -357,6 +378,8 @@ def ParseRecipe(pageName, index, recipeNode, nameToIdLookup, methodSink, missing
 			if name == "chisel":
 				verb = "Chisel"
 				file_path += "Chisel/"
+				if "snelm" in pageName or "Snelm" in pageName:
+					file_path += "snelms"
 
 			if name == "sieve":
 				verb = "Sieve"
@@ -399,11 +422,18 @@ def ParseRecipe(pageName, index, recipeNode, nameToIdLookup, methodSink, missing
 			requires[nameToIdLookup[name]] = 1
 
 	if "facilities" in simple:
-		faciliy = ""
+		faciliyName = ""
 		for facility in simple["facilities"].split(","):
 			name = facility.strip()
 
 			if name == "":
+				continue
+
+			suffix = " at " + name
+
+			if name == "Anvil":
+				verb = "Smith"
+				file_path += "Anvil/" + util.SafeName(pageName.split(' ', 1)[0]) + "/"
 				continue
 
 			if name in FacilityMappings:
@@ -415,18 +445,17 @@ def ParseRecipe(pageName, index, recipeNode, nameToIdLookup, methodSink, missing
 				missingFacilities[name].append(pageName)
 				print("Unkown facility {} in {}".format(name, pageName), flush=True)
 			
-			suffix = " at " + name
-			facility = util.SafeName(name)
+			faciliyName = util.SafeName(name)
 
-		if facility != "":
+		if faciliyName != "":
 			if file_path == "":
 				file_path = "Facility/"
 
-			file_path += facility + "/"
+			file_path += faciliyName + "/"
 
 	if "item.187" in takes or "item.5937" in takes or "item.5940" in takes or "item.3152" in takes:
 		verb = "Poison"
-		file_path += "Poision/"
+		file_path += "Poision/" + util.SafeName(pageName.split(' ', 1)[0]) + "/"
 
 	if "item.5418" in takes or "item.5376" in takes: # Empty sack, Basket
 		verb = "Fill"
@@ -442,6 +471,35 @@ def ParseRecipe(pageName, index, recipeNode, nameToIdLookup, methodSink, missing
 	if not requires and takes and makes and file_path == "":
 		verb = "Make"
 		file_path += "Make/"
+		simpleName = util.SafeName(pageName);
+		if "graceful" in simpleName:
+			file_path += "graceful/"
+		elif "max" in simpleName:
+			file_path += "max_capes/"
+		elif "amlodd" in simpleName:
+			file_path += "crystal/amlodd/"
+		elif "cadarn" in simpleName:
+			file_path += "crystal/cadarn/"
+		elif "crwys" in simpleName:
+			file_path += "crystal/crwys/"
+		elif "hefin" in simpleName: 
+			file_path += "crystal/hefin/"
+		elif "iorwerth" in simpleName:
+			file_path += "crystal/iorwerth/"
+		elif "ithell" in simpleName:
+			file_path += "crystal/ithell/"
+		elif "trahaearn" in simpleName:
+			file_path += "crystal/trahaearn/"
+		elif "meilyr" in simpleName:
+			file_path += "crystal/meilyr/"
+		elif "crystal" in simpleName:
+			file_path += "crystal/"
+		elif "dragon" in simpleName:
+			file_path += "dragon/"
+		elif "amulet" in simpleName:
+			file_path += "amulet/"
+		elif "slayer" in simpleName:
+			file_path += "slayer/"
 
 	method = {}
 
