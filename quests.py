@@ -185,7 +185,7 @@ def ParseQuestReward(makes, line, itemNameToId):
 		return
 
 
-def ParseQuest(name, details, rewards, itemNameToId, questNameToId):
+def ParseQuest(name, details, rewards, itemNameToId, questNameToId, methodSink):
 	simpleDetails = util.DictFromAssignments(details.params)
 
 	makes = {}
@@ -239,14 +239,11 @@ def ParseQuest(name, details, rewards, itemNameToId, questNameToId):
 	method["makes"] = makes
 	method["takes"] = {} # its too hard to figure out which items are consumed during a quest so they're all tracked as required
 	method["requires"] = requires
+	method["category"] = "Quests/{}".format(difficulty)
+	
+	methodSink.append(method)
 
-	target_file = "baked/Quests/{}/{}.json".format(difficulty, util.SafeName(name))
-
-	os.makedirs(os.path.dirname(target_file), exist_ok=True)
-	with open(target_file, "w+") as fi:
-		json.dump(method, fi, indent=2)
-
-def BuildMethods(pages, itemNameToId, questNameToId):
+def BuildMethods(pages, itemNameToId, questNameToId, methodSink):
 
 	for name, page in pages.items():
 		if name.startswith("Category"):
@@ -277,7 +274,7 @@ def BuildMethods(pages, itemNameToId, questNameToId):
 				print("{} missing details".format(name))
 				continue
 
-			ParseQuest(name, details, rewards, itemNameToId, questNameToId)
+			ParseQuest(name, details, rewards, itemNameToId, questNameToId, methodSink)
 		except (KeyboardInterrupt, SystemExit):
 			raise
 		except:
@@ -316,11 +313,11 @@ def BuildIdTable(pages) -> Dict[str, str]:
 
 	return out
 
-def run(itemNameToId):
+def run(itemNameToId, methodSink):
 	index = []
 
 	quest_pages = api.query_category("Quests") | api.query_category("Miniquests")
 
 
 	questNameToId = BuildIdTable(quest_pages)
-	BuildMethods(quest_pages, itemNameToId, questNameToId)
+	BuildMethods(quest_pages, itemNameToId, questNameToId, methodSink)

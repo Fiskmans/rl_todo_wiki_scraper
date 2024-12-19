@@ -48,11 +48,11 @@ def ParseInt(dict, key, default):
 	except:
 		return default
 
-def ParseRecipe(pageName, index, recipeNode, context, nameToIdLookup, methodSink):
+def ParseRecipe(pageName, recipeNode, context, nameToIdLookup, methodSink):
 	verb = "???"
 	suffix = ""
 	
-	file_path = ""
+	category = ""
 
 	takes = {}
 	makes = {}
@@ -99,9 +99,11 @@ def ParseRecipe(pageName, index, recipeNode, context, nameToIdLookup, methodSink
 			case "Prayer":
 				verb = "Bless"
 		
-		file_path = name + "/"
+		category = name + "/"
 
 	for mat in EachParamCategory(recipeNode.params, "mat"):
+		if not "" in mat:
+			continue
 		name = mat[""]
 		quantity = ParseInt(mat, "quantity", 1)
 
@@ -129,35 +131,35 @@ def ParseRecipe(pageName, index, recipeNode, context, nameToIdLookup, methodSink
 
 			if name == "Needle":
 				verb = "Sew"
-				file_path += "Sewing/"
+				category += "Sewing/"
 
 			if name == "Gardening trowel":
 				verb = "Plant"
-				file_path += "Planting/"
+				category += "Planting/"
 
 			if name == "Pestle and mortar" or name == "Pestle and mortar (The Gauntlet)":
 				verb = "Crush"
-				file_path += "Crushing/"
+				category += "Crushing/"
 
 			if name == "Knife":
 				verb = "Cut"
-				file_path += "Cutting/"
+				category += "Cutting/"
 
 			if name == "Chisel":
 				verb = "Chisel"
-				file_path += "Chisel/"
+				category += "Chisel/"
 
 			if name == "Sieve":
 				verb = "Sieve"
-				file_path += "Sieve/"
+				category += "Sieve/"
 
 			if name == "Pirate hat":
 				verb = "minigame"
-				file_path += "Trouble_Brewing/"
+				category += "Trouble_Brewing/"
 
 			if name == "Hammer" and verb != "Smith" and verb != "Build":
 				verb = "Break"
-				file_path += "Break/"
+				category += "Break/"
 			
 			if not name in nameToIdLookup:
 				print("Tool {} in {} does not have an id".format(name, pageName));
@@ -174,7 +176,7 @@ def ParseRecipe(pageName, index, recipeNode, context, nameToIdLookup, methodSink
 
 			if name == "Singing bowl":
 				verb = "Sing"
-				file_path = "Singing/"
+				category = "Singing/"
 				requires["quest.song_of_the_elves"] = 1
 			
 			if name == "Woodcutting stump":
@@ -199,22 +201,22 @@ def ParseRecipe(pageName, index, recipeNode, context, nameToIdLookup, methodSink
 			facility = util.SafeName(name)
 
 		if facility != "":
-			if file_path == "":
-				file_path = "Facility/"
+			if category == "":
+				category = "Facility/"
 
-			file_path += facility + "/"
+			category += facility + "/"
 
-	if not requires and takes and makes and file_path == "":
+	if not requires and takes and makes and category == "":
 		verb = "Make"
-		file_path += "Make/"
+		category += "Make/"
 
 	if "item.5418" in takes or "item.5376" in takes: # Empty sack, Basket
 		verb = "Fill"
-		file_path += "Fill/"
+		category += "Fill/"
 
 	if "item.11740" in takes: # Scroll of redirection
 		Verb = "Redirect"
-		file_path = "Make/"
+		category = "Make/"
 
 	method = {}
 
@@ -223,19 +225,17 @@ def ParseRecipe(pageName, index, recipeNode, context, nameToIdLookup, methodSink
 	method["requires"] = requires
 	method["name"] = verb + " " + pageName + suffix
 
-	final_path = "Baked/{}{}_{}.json".format(file_path, util.SafeName(pageName), index)
-
 	if verb == "???":
-		print("{}/{}: Unkown verb".format(file_path, pageName))
-		final_path = "Baked/Failed/{}{}_{}.json".format(file_path, util.SafeName(pageName), index)
+		print("{}/{}: Unkown verb".format(category, pageName))
+		category = "Failed/" + category
 
 	if not makes:
-		print("{}/{}: Doesnt make anything".format(file_path, pageName))
-		final_path = "Baked/Failed/{}{}_{}.json".format(file_path, util.SafeName(pageName), index)
+		print("{}/{}: Doesnt make anything".format(category, pageName))
+		category = "Failed/" + category
 
-	os.makedirs(os.path.dirname(final_path), exist_ok=True)
-	with open(final_path, "w+") as fi:
-		json.dump(method, fi, indent=2)
+	method["category"] = category
+
+	methodSink.append(method)
 
 
 def FindRecipes(item, code, context, nameToIdLookup, methodSink):
@@ -245,7 +245,7 @@ def FindRecipes(item, code, context, nameToIdLookup, methodSink):
 	for recipe in code.filter_templates(matches=lambda t: t.name.matches("Recipe"), recursive=False):
 		index += 1
 		subcontext = context.copy()
-		ParseRecipe(item, index, recipe, subcontext, nameToIdLookup, methodSink);
+		ParseRecipe(item, recipe, subcontext, nameToIdLookup, methodSink);
 
 	for tabs in code.filter_templates(matches=lambda t: t.name.matches("Tabber"), recursive=False):
 		index = 1;
@@ -313,6 +313,11 @@ def FindIds(pages) -> Dict[str, str]:
 
 				if not inserted:
 					print("Duplicate item [{}] {} and {}".format(item_name, out[item_name], "item." + str(id)))
+
+				if "redirects" in page:
+					for redirect in page["redirects"]:
+						if not redirect in out:
+							out[redirect] = "item." + str(id)
 					
 				#print("{}: item.{}".format(name, str(id)))
 
@@ -362,13 +367,11 @@ def BuildMethods(nameToIdLookup, pages, methodSink):
 			print("Item {} failed:".format(name))
 			traceback.print_exc()
 
-def run():
-	index = []
-
+def run(methodSink):
 	item_pages = api.query_category("Items")
 
 	nameToIdLookup = FindIds(item_pages)
-	BuildMethods(nameToIdLookup, item_pages, index)
+	BuildMethods(nameToIdLookup, item_pages, methodSink)
 
 	return nameToIdLookup
 
