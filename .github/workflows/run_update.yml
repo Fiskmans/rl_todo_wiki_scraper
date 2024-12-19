@@ -20,27 +20,25 @@ jobs:
     - name: Run
       run: |
         pipenv run python main.py
-    - name: Push to srn
+    - name: Push to data repo
       env:
-        SSH_KEY: ${{ secrets.SRN_KEY }}
+        SSH_KEY: ${{ secrets.TODO_DATA_KEY }}
       run: |
         eval $(ssh-agent)
         ssh-add <(echo "$SSH_KEY" | base64 -d)
         mkdir -p ~/.ssh
         ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
         BRANCH_NAME="wiki-data-$(date +"%Y-%m-%d")"
-        mkdir srn
-        cd srn
+        mkdir upload
+        cd upload
         git init
-        git remote add upstream https://github.com/runelite/static.runelite.net.git
-        git remote add origin git@github.com:runelite/static.runelite.net.git
+        git remote add upstream https://github.com/Fiskmans/rl_todo_data.git
+        git remote add origin git@github.com:Fiskmans/rl_todo_data.git
         git fetch upstream
         git checkout upstream/gh-pages
         git checkout -b "$BRANCH_NAME"
         mkdir -p item npcs
-        cp ../stats{,.ids.min}.json item/
-        cp ../npcs{,.min}.json npcs
-        git add item/stats{,.ids.min}.json
-        git add npcs/npcs{,.min}.json
-        git -c user.name="RuneLite Wiki Scraper" -c user.email="runelite@runelite.net" commit -m "Update wiki data" || exit 0
+        cp ../methods.json methods.json
+        git add methods.json.json
+        git -c user.name="RuneLite (todo) Wiki Scraper" -c user.email="mans@zingo.org" commit -m "Update wiki data" || exit 0
         git push -u origin "$BRANCH_NAME"
