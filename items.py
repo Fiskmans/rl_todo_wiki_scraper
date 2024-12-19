@@ -275,7 +275,7 @@ def ParseRecipe(pageName, recipeNode, nameToIdLookup, methodSink, missingFacilit
 		if xp > 0.0:
 			makes["xp." + name] = xp
 
-		file_path = name + "/"
+		category = name + "/"
 
 		match name:
 			case "Crafting":
@@ -283,16 +283,16 @@ def ParseRecipe(pageName, recipeNode, nameToIdLookup, methodSink, missingFacilit
 				firstWord = util.SafeName(pageName.split(' ', 1)[0])
 
 				if firstWord in [ "yellow", "red", "purple", "origami", "pink", "orange", "leather", "green", "broodoo", "blue", "black" ]:
-					file_path += firstWord + "/"
+					category += firstWord + "/"
 				
 				if "Amulet" in pageName or "amulet" in pageName:
-					file_path += "Amulet/"
+					category += "Amulet/"
 
 			case "Smithing":
 				verb = "Smith"
 			case "Fletching":
 				verb = "Fletch" 
-				file_path += util.SafeName(pageName.split(' ', 1)[0]) + "/"
+				category += util.SafeName(pageName.split(' ', 1)[0]) + "/"
 			case "Herblore":
 				verb = "Mix" 
 			case "Magic":
@@ -302,18 +302,18 @@ def ParseRecipe(pageName, recipeNode, nameToIdLookup, methodSink, missingFacilit
 			case "Cooking":
 				if xp > 0:
 					verb = "Cook"
-					file_path += "Cook/" 
+					category += "Cook/" 
 					if "pizza" in pageName or "Pizza" in pageName:
-						file_path += "pizza/"
+						category += "pizza/"
 				else:
 					if "Burnt" in pageName:
 						verb = "Burn"
-						file_path += "Burn/"
+						category += "Burn/"
 					else:
 						verb = "Prepare"
-						file_path += "Prepare/"
+						category += "Prepare/"
 						if "pizza" in pageName or "Pizza" in pageName:
-							file_path += "pizza/"
+							category += "pizza/"
 			case "Farming":
 				verb = "Plant" 
 			case "Runecraft":
@@ -392,30 +392,30 @@ def ParseRecipe(pageName, recipeNode, nameToIdLookup, methodSink, missingFacilit
 
 			if name == "Hammer" and verb != "Smith" and verb != "Build":
 				verb = "Break"
-				file_path += "Break/"
+				category += "Break/"
 			if name == "glassblowing_pipe":
 				verb = "Blow"
-				file_path += "Blowing/"
+				category += "Blowing/"
 
 			if name == "ogre_bellows":
 				verb = "Inflate"
-				file_path += "Inflating/"
+				category += "Inflating/"
 
 			if name == "binding_book":
 				verb = "Enchant"
-				file_path += "Enchanting/"
+				category += "Enchanting/"
 
 			if name == "enchanted_scroll":
 				verb = "Enchant"
-				file_path += "Enchanting/"
+				category += "Enchanting/"
 
 			if name == "machete":
 				verb = "cut"
-				file_path += "Cutting/"
+				category += "Cutting/"
 
 			if name in [ "spice", "gnome_spice" ]:
 				verb = "Season"
-				file_path += "Cooking/"
+				category += "Cooking/"
 			
 			if not name in nameToIdLookup:
 				print("Tool [{}] in {} does not have an id".format(name, pageName), flush=True);
@@ -457,7 +457,7 @@ def ParseRecipe(pageName, recipeNode, nameToIdLookup, methodSink, missingFacilit
 
 			if name == "Anvil":
 				verb = "Smith"
-				file_path += "Anvil/" + util.SafeName(pageName.split(' ', 1)[0]) + "/"
+				category += "Anvil/" + util.SafeName(pageName.split(' ', 1)[0]) + "/"
 				continue
 
 			if name in FacilityMappings:
@@ -475,11 +475,11 @@ def ParseRecipe(pageName, recipeNode, nameToIdLookup, methodSink, missingFacilit
 			if category == "":
 				category = "Facility/"
 
-			file_path += faciliyName + "/"
+			category += faciliyName + "/"
 
 	if "item.187" in takes or "item.5937" in takes or "item.5940" in takes or "item.3152" in takes:
 		verb = "Poison"
-		file_path += "Poision/" + util.SafeName(pageName.split(' ', 1)[0]) + "/"
+		category += "Poision/" + util.SafeName(pageName.split(' ', 1)[0]) + "/"
 
 	if "item.5418" in takes or "item.5376" in takes: # Empty sack, Basket
 		verb = "Fill"
@@ -487,43 +487,43 @@ def ParseRecipe(pageName, recipeNode, nameToIdLookup, methodSink, missingFacilit
 
 	if "item.11740" in takes: # Scroll of redirection
 		verb = "Redirect"
-		file_path = "Redirect/"
+		category = "Redirect/"
 
 	if "item.3436" in takes: # Sacred oil(1)
 		verb = "Impregnate"
 
-	if not requires and takes and makes and file_path == "":
+	if not requires and takes and makes and category == "":
 		verb = "Make"
-		file_path += "Make/"
+		category += "Make/"
 		simpleName = util.SafeName(pageName);
 		if "graceful" in simpleName:
-			file_path += "graceful/"
+			category += "graceful/"
 		elif "max" in simpleName:
-			file_path += "max_capes/"
+			category += "max_capes/"
 		elif "amlodd" in simpleName:
-			file_path += "crystal/amlodd/"
+			category += "crystal/amlodd/"
 		elif "cadarn" in simpleName:
-			file_path += "crystal/cadarn/"
+			category += "crystal/cadarn/"
 		elif "crwys" in simpleName:
-			file_path += "crystal/crwys/"
+			category += "crystal/crwys/"
 		elif "hefin" in simpleName: 
-			file_path += "crystal/hefin/"
+			category += "crystal/hefin/"
 		elif "iorwerth" in simpleName:
-			file_path += "crystal/iorwerth/"
+			category += "crystal/iorwerth/"
 		elif "ithell" in simpleName:
-			file_path += "crystal/ithell/"
+			category += "crystal/ithell/"
 		elif "trahaearn" in simpleName:
-			file_path += "crystal/trahaearn/"
+			category += "crystal/trahaearn/"
 		elif "meilyr" in simpleName:
-			file_path += "crystal/meilyr/"
+			category += "crystal/meilyr/"
 		elif "crystal" in simpleName:
-			file_path += "crystal/"
+			category += "crystal/"
 		elif "dragon" in simpleName:
-			file_path += "dragon/"
+			category += "dragon/"
 		elif "amulet" in simpleName:
-			file_path += "amulet/"
+			category += "amulet/"
 		elif "slayer" in simpleName:
-			file_path += "slayer/"
+			category += "slayer/"
 
 	method = {}
 
@@ -534,11 +534,11 @@ def ParseRecipe(pageName, recipeNode, nameToIdLookup, methodSink, missingFacilit
 
 	if verb == "???":
 		print("{}/{}: Unkown verb".format(category, pageName), flush=True)
-		category = "Failed/" + category
+		category = "Unkown/" + category
 
 	if not makes:
 		print("{}/{}: Doesnt make anything".format(category, pageName))
-		category = "Failed/" + category
+		category = "Unkown/" + category
 
 	method["category"] = category
 
@@ -551,7 +551,7 @@ def FindRecipes(item, code, nameToIdLookup, methodSink, missingFacilities):
 
 	for recipe in code.filter_templates(matches=lambda t: t.name.matches("Recipe"), recursive=True):
 		index += 1
-		ParseRecipe(item, index, recipe, nameToIdLookup, methodSink, missingFacilities);
+		ParseRecipe(item, recipe, nameToIdLookup, methodSink, missingFacilities);
 
 	#util.write_json("stats.json", "stats.ids.min.json", stats)
 

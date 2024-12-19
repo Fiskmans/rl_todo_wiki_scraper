@@ -13,7 +13,9 @@ itemNameToId = items.run(allMethods)
 quests.run(itemNameToId, allMethods)
 
 with open("methods.json", "w+") as fi:
-	json.dump(allMethods, fi, indent=2)def ClumpWarnings(path: str):
+	json.dump(allMethods, fi, indent=2)
+	
+def ClumpWarnings(path: str):
     files = 0
     for node in os.listdir(path):
         nodePath = os.path.join(path, node)
