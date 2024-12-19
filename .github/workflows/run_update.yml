@@ -28,17 +28,15 @@ jobs:
         ssh-add <(echo "$SSH_KEY" | base64 -d)
         mkdir -p ~/.ssh
         ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
-        BRANCH_NAME="wiki-data-$(date +"%Y-%m-%d")"
         mkdir upload
         cd upload
         git init
         git remote add upstream https://github.com/Fiskmans/rl_todo_data.git
         git remote add origin git@github.com:Fiskmans/rl_todo_data.git
         git fetch upstream
-        git checkout upstream/gh-pages
-        git checkout -b "$BRANCH_NAME"
+        git checkout upstream/latest
         mkdir -p item npcs
         cp ../methods.json methods.json
-        git add methods.json.json
-        git -c user.name="RuneLite (todo) Wiki Scraper" -c user.email="mans@zingo.org" commit -m "Update wiki data" || exit 0
-        git push -u origin "$BRANCH_NAME"
+        git add methods.json
+        git -c user.name="RuneLite (todo) Wiki Scraper" -c user.email="mans@zingo.org" commit -m "Update wiki data $(date +"%Y-%m-%d")" || exit 0
+        git push -u origin latest
