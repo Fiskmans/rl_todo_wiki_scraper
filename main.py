@@ -12,9 +12,11 @@ allMethods = []
 itemNameToId = items.run(allMethods)
 quests.run(itemNameToId, allMethods)
 
+print("Writing methods.json", flush=True)
+
 with open("methods.json", "w+") as fi:
 	json.dump(allMethods, fi, indent=2)
-	
+
 def ClumpWarnings(path: str):
     files = 0
     for node in os.listdir(path):
@@ -25,6 +27,6 @@ def ClumpWarnings(path: str):
             ClumpWarnings(nodePath)
     
     if files > 30:
-        print("Warning {} has {} methods in it, consider splitting it up".format(path, files))
+        print("Warning {} has {} methods in it, consider splitting it up".format(path, files), flush=True)
 
-ClumpWarnings("Baked")
+#ClumpWarnings("Baked") TODO: update this to check category
