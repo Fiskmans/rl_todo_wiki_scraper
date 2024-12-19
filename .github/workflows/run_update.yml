@@ -31,12 +31,10 @@ jobs:
         mkdir upload
         cd upload
         git init
-        git remote add upstream https://github.com/Fiskmans/rl_todo_data.git
         git remote add origin git@github.com:Fiskmans/rl_todo_data.git
-        git fetch upstream
-        git checkout upstream/latest
-        mkdir -p item npcs
+        git fetch origin latest
+        git switch latest
         cp ../methods.json methods.json
         git add methods.json
         git -c user.name="RuneLite (todo) Wiki Scraper" -c user.email="mans@zingo.org" commit -m "Update wiki data $(date +"%Y-%m-%d")" || exit 0
-        git push -u origin latest
+        git push
